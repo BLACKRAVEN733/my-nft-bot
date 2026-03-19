@@ -5,65 +5,53 @@ from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
 TOKEN = os.getenv("BOT_TOKEN")
 
-# Function to get live TON price in USD and MMK
 def get_live_rates():
     try:
-        # Fetching live Toncoin price from CoinGecko
+        # Fetching live Toncoin price
         url = "https://api.coingecko.com/api/v3/simple/price?ids=toncoin&vs_currencies=usd,mmk"
         response = requests.get(url).json()
         usd = response['toncoin']['usd']
         mmk = response['toncoin']['mmk']
         return usd, mmk
     except:
-        # Backup rates if the API is down
-        return 5.15, 2830
+        return 5.15, 2830 # Backup rates
 
 async def get_price(update: Update, context: ContextTypes.DEFAULT_TYPE):
     gift_name = "-".join(context.args).lower()
-    
     if not gift_name:
-        await update.message.reply_text("❌ Usage: /price gift-name", parse_mode='Markdown')
+        await update.message.reply_text("❌ Usage: `/price gift-name`", parse_mode='Markdown')
         return
 
-    msg = await update.message.reply_text(f"🔍 Searching for {gift_name.replace('-', ' ').title()}...")
+    msg = await update.message.reply_text(f"🔍 Searching for **{gift_name.title()}**...")
 
-    # Fetching Gift Floor Price from Marketplace
-    market_url = f"https://portal-market.com/api/collections?search={gift_name}&limit=1"
+    url = f"https://portal-market.com/api/collections?search={gift_name}&limit=1"
     
     try:
-        market_res = requests.get(market_url).json()
-        data = market_res["collections"][0]
+        res = requests.get(url).json()
+        data = res["collections"][0]
         floor_ton = float(data.get("floor_price", 0))
-        display_name = data.get("name")
-
-        # AUTO UPDATE: Fetch live rates right now
-        ton_to_usd, ton_to_mmk = get_live_rates()
         
+        ton_to_usd, ton_to_mmk = get_live_rates()
         price_usd = floor_ton * ton_to_usd
         price_mmk = floor_ton * ton_to_mmk
 
-        getgems_link = f"https://getgems.io/collection/{gift_name}"
-        
         text = (
-            f"🎁 {display_name}\n"
+            f"🎁 **{data.get('name')}**\n"
             f"━━━━━━━━━━━━━━━\n"
-            f"💰 Floor Price: {floor_ton} TON\n"
-            f"💵 USD: ${price_usd:.2f}\n"
-            f"🇲🇲 MMK: {price_mmk:,.0f} K\n"
+            f"💰 **Floor Price:** `{floor_ton} TON`\n"
+            f"💵 **USD:** `${price_usd:.2f}`\n"
+            f"🇲🇲 **MMK:** `{price_mmk:,.0f} K`\n"
             f"━━━━━━━━━━━━━━━\n"
-            f"📊 *Rates: 1 TON = {ton_to_mmk:,.0f} MMK*\n"
-            f"👉 [View on Marketplace]({getgems_link})"
+            f"👉 [View on Marketplace](https://getgems.io/collection/{gift_name})"
         )
-        
         await msg.edit_text(text, parse_mode='Markdown', disable_web_page_preview=True)
-
-    except Exception:
-        await msg.edit_text("❌ Gift not found. Try plush-pepe or dog-pals.")
+    except:
+        await msg.edit_text("❌ Gift not found.")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("✅ Auto-Update Bot Online!\nUse /price [name]", parse_mode='Markdown')
+    await update.message.reply_text("✅ **Bot Online!**\nUse `/price [name]`")
 
-if name == 'main':
+if __name__ == '__main__':
     app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("price", get_price))
